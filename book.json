@@ -1,5 +1,5 @@
 {
     "plugins":[
-        "expandable-chapters"
+        "expandable-chapters","splitter","anchor-navigation-ex","back-to-top-button"
     ]
 }
