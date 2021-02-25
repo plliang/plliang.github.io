@@ -3,6 +3,9 @@
         "expandable-chapters",
         "splitter",
         "anchor-navigation-ex",
-        "back-to-top-button"
+        "back-to-top-button",
+        "-lunr",
+        "-search",
+        "search-pro"
     ]
 }
