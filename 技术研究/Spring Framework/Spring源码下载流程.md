@@ -1,10 +1,14 @@
 Spring源码下载以及编译流程记录
 
-# 1. 下载源码
+# 下载源码
 
 ```SHELL
-git clone --branch v5.2.8.RELEASE https://gitee.com/Z201/spring-framework.git
+git clone --branch v5.2.8.RELEASE https://github.com/spring-projects/spring-framework.git
 ```
+
+> GitHub下载速度慢的话，可以先迁移到Gitee，然后再从Gitee下载
+>
+> git clone --branch v5.2.8.RELEASE https://gitee.com/Z201/spring-framework.git
 
 # 2. 修改`setting.gradle`文件
 
