@@ -1,7 +1,6 @@
 # Summary
 
 * [Introduction](README.md)
-* [研究计划任务清单](研究计划任务清单.md)
 * 编程工具
   * GitHub
     * [无法访问github.io解决方案](编程工具/GitHub/无法访问github.io解决方案.md)
