@@ -21,6 +21,7 @@
     * [Spring源码下载及编译流程](技术研究/Spring Framework/Spring源码下载流程.md)
   * Netty
     * [Future和Promise源码分析](技术研究/Netty/Future和Promise源码分析.md) 
+    *  [Channel系列源码分析.md](技术研究\Netty\Channel系列源码分析.md) 
   * Redis
   * MQ
     * RabbitMQ
