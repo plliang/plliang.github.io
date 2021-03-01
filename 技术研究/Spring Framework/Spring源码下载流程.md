@@ -43,12 +43,8 @@ org.gradle.daemon=true
 
 ```json
 repositories {
-    mavenCentral()
-    
-    maven { url 'https://maven.aliyun.com/nexus/content/groups/public/' }
+	maven { url 'https://maven.aliyun.com/nexus/content/groups/public/' }
 	maven { url 'https://maven.aliyun.com/nexus/content/repositories/jcenter'}
-
-	maven { url "https://repo.spring.io/libs-spring-framework-build" }
 }
 ```
 
@@ -57,7 +53,7 @@ repositories {
 在工程主目录下使用如下命令编译：
 
 ```shell
-./gradlew :spring-oxm:compileTestJava
+.\gradlew :spring-oxm:compileTestJava
 ```
 
 > 下载依赖时出现异常：暂未解决
