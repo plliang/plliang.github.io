@@ -255,3 +255,165 @@ protected int doReadMessages(List<Object> buf) throws Exception {
 >     throw new UnsupportedOperationException();
 > }
 > ```
+
+## AbstractChannel
+
+`AbstractChannel`是Netty中Channel接口的抽象实现类，
+
+```java
+public abstract class AbstractChannel extends DefaultAttributeMap implements Channel {
+    private final Channel parent;
+    private final ChannelId id;
+    private final Unsafe unsafe;
+    private final DefaultChannelPipeline pipeline;
+    private final VoidChannelPromise unsafeVoidPromise = new VoidChannelPromise(this, false);
+    private final CloseFuture closeFuture = new CloseFuture(this);
+
+    private volatile SocketAddress localAddress;
+    private volatile SocketAddress remoteAddress;
+    private volatile EventLoop eventLoop;
+    private volatile boolean registered;
+    private boolean closeInitiated;
+
+    /** Cache for the string representation of this channel */
+    private boolean strValActive;
+    private String strVal;
+}
+```
+
+`AbstractChannel`将所有相关的对象都进行了声明，由`AbstractChannel`进行初始化和统一封装。
+
+Netty是基于事件驱动的，当Channel进行IO操作时会产生对应的IO事件，然后该驱动事件在`ChannelPipeline`中传递，有对应的`ChannelHandler`进行拦截和处理。
+
+对IO事件的处理，在`AbstractChannel`直接调用`DefaultChannelPipeline`相关方法，由其对应的`ChannelHandler`进行具体逻辑处理。
+
+
+
+## AbstractNioChannel
+
+`AbstractNioChannel`是对于NIO操作相关的抽象。
+
+```java
+public abstract class AbstractNioChannel extends AbstractChannel {
+    private final SelectableChannel ch;
+    protected final int readInterestOp;
+    volatile SelectionKey selectionKey;
+    boolean readPending;
+    private final Runnable clearReadPendingRunnable = new Runnable() {
+        @Override
+        public void run() {
+            clearReadPending0();
+        }
+    };
+
+    /**
+     * The future of the current connection attempt.  If not null, subsequent
+     * connection attempts will fail.
+     */
+    private ChannelPromise connectPromise;
+    private ScheduledFuture<?> connectTimeoutFuture;
+    private SocketAddress requestedRemoteAddress;
+}
+```
+
+其中定义的成员变量与方法等，都是与JDK的NIO相关的
+
+- **SelectableChannel**：NIO中的`java.nio.SocketChannel`或者`java.nio.ServerSocketChannel`，由于需要共用该变量，所以声明类型为其父类
+- **readInterestOp：** 当前Channel关注的事件
+- **selectionKey**：Channel注册到`EventLoop`上的返回键，由于Channel面临的时多个业务线程的并发写操作，当`SelectionKey`修改之后，需要让其他线程感知到变化，所以使用`volatile`关键字保证可见性。
+
+### 构造方法
+
+```java
+public abstract class AbstractNioChannel extends AbstractChannel {
+    protected AbstractNioChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
+        super(parent);
+        this.ch = ch;
+        this.readInterestOp = readInterestOp;
+        try {
+            ch.configureBlocking(false);
+        } catch (IOException e) {
+            try {
+                ch.close();
+            } catch (IOException e2) {
+                if (logger.isWarnEnabled()) {
+                    logger.warn(
+                            "Failed to close a partially initialized socket.", e2);
+                }
+            }
+
+            throw new ChannelException("Failed to enter non-blocking mode.", e);
+        }
+    }
+}
+```
+
+构造方法中初始化成员变量，并设置`SelectableChannel`为非阻塞模式。
+
+### doRegister
+
+```java
+public abstract class AbstractNioChannel extends AbstractChannel {
+    protected void doRegister() throws Exception {
+        boolean selected = false;
+        for (;;) {
+            try {
+                selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
+                return;
+            } catch (CancelledKeyException e) {
+                if (!selected) {
+                    // Force the Selector to select now as the "canceled" SelectionKey may still be
+                    // cached and not removed because no Select.select(..) operation was called yet.
+                    eventLoop().selectNow();
+                    selected = true;
+                } else {
+                    // We forced a select operation on the selector before but the SelectionKey is still cached
+                    // for whatever reason. JDK bug ?
+                    throw e;
+                }
+            }
+        }
+    }
+}
+```
+
+定义了一个`selected`变量来标识注册操作是否成功，调用`SelectableChannel.register()`方法，将当前`Channel`注册到`EventLoop`的多路复用器上。
+
+注册`Channel`的时候需要指定监听的网络操作位来表示`Channel`对哪几类网络事件感兴趣。`AbstractNioChannel`注册时设置的事件为0，表示对任何事件都不感兴趣，只是完成注册操作。
+
+如果当前注册返回的`selectionKey`已经被取消，则抛出`CancelledKeyException`异常，在catch中捕获该异常。如果是第一次处理该异常，调用多路复用器的`selectNow()`方法将`selectionKey`从多路复用器中删除掉。操作成功之后，将`selected`设置为`true`，说明之前失效的`selectionKey`已经被删除了，继续发起下一次注册；如果仍然发生`CancelledKeyException`异常，说明我们无法删除已经被取消的 selectionKey,按照 JDK 的API 说明，这种意外不应该发生。如果发生这种问题，则说明可能 NIO 的相关类库存在不可恢复的 BUG，直接抛出 CancelledKeyException 异常到上层进行统一处理。
+
+### doBeginRead
+
+```java
+public abstract class AbstractNioChannel extends AbstractChannel {
+    @Override
+    protected void doBeginRead() throws Exception {
+        // Channel.read() or ChannelHandlerContext.read() was called
+        final SelectionKey selectionKey = this.selectionKey;
+        if (!selectionKey.isValid()) {
+            return;
+        }
+
+        readPending = true;
+
+        final int interestOps = selectionKey.interestOps();
+        if ((interestOps & readInterestOp) == 0) {
+            selectionKey.interestOps(interestOps | readInterestOp);
+        }
+    }
+}
+```
+
+`doBeginRead()`方法作用是在准备处理读操作之前需要设置网络操作位为读。
+
+首先判断`SelectionKey`是否有效，如果已经失效了就直接返回。
+
+然后将`SelectionKey`当前操作位与读操作位进行按位与操作，如果等于0，表示当前没有设置读操作位，接下来通过`SelectionKey.interestOps()`方法设置读操作位，就可以进行网络事件监听了。
+
+## AbstractNioByteChannel
+
+
+
+## AbstractNioMessageChannel
+
