@@ -90,5 +90,4 @@ Error resolving plugin [id: 'io.spring.gradle-enterprise-conventions', version: 
 
 **解决方法**
 
-由于从`re.spring.io`下载依赖包需要登录，所以
-
+由于从`repo.spring.io`下载依赖包需要登录，并且阿里云的仓库中也无法找到`io.spring.gradle-enterprise-conventions.gradle.plugin-0.0.2.jar`这个包，所以在`build.gradle`中修改为`0.0.4`版本即可。
