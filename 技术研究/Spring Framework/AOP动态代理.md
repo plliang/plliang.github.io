@@ -34,3 +34,14 @@ Spring通过 `@EnableAspectJAutoProxy` 注解开启AOP支持。
 
 # 代理对象生成
 
+AOP启用时注册了`AspectJAutoProxyRegistrar`这个入口类，所以AOP代理对象的生成就是在这个类中生成的。
+
+![image-20210302163008733](pic/image-20210302163008733.png)
+
+在Bean实例化完成后，会调用之前已经实例化的`BeanPostProcessor.postProcessAfterInitialization()`方法。这里就会调用到`AspectJAutoProxyRegistrar`类的相关方法。
+
+![image-20210302163053244](pic/image-20210302163053244.png)
+
+`wrapIfNecessary()`方法生成代理类。
+
+![image-20210302163343955](pic/image-20210302163343955.png)
