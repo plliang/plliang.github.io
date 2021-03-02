@@ -1,3 +1,5 @@
+# AOP入口类注册
+
 研究AOP是如何实现动态代理的。
 
 Spring通过 `@EnableAspectJAutoProxy` 注解开启AOP支持。
@@ -26,5 +28,9 @@ Spring通过 `@EnableAspectJAutoProxy` 注解开启AOP支持。
 
 在`ConfigurationClassPostProcessor`中对AOP `@Import`注解进行解析，`ConfigurationClassPostProcessor`是一个`BeanFactoryPostProcessor`，而`BeanFactoryPostProcessor`在bean收集完成之后进行实例化调用。
 
+![image-20210302132948682](pic/image-20210302132948682.png)
 
+所以AOP入口类实际是在`BeanPostProcessor`接口调用时注册的。
+
+# 代理对象生成
 
